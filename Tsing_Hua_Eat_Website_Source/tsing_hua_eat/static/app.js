@@ -2,11 +2,103 @@ let data=[],groups=[],me=null,selected=null;const $=id=>document.getElementById(
 async function api(path,method='GET',body){let r=await fetch('/api/'+path,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});let d=await r.json();if(!r.ok)throw Error(d.error||'操作失敗');return d}
 function toast(msg){$('toast').textContent=msg;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}
 function show(html){$('modalBody').innerHTML=html;if(!modal.open)modal.showModal()}
-async function refresh(){data=await api('restaurants');groups=await api('groups');me=(await api('me')).username;$('count').textContent=data.length;$('account').innerHTML=me?`<span class="muted">嗨，${esc(me)}　</span><button class="authbtn" onclick="logout()">登出</button>`:`<button class="authbtn" onclick="authForm('login')">登入</button><button class="authbtn" onclick="authForm('register')">註冊</button>`;const previous=$('groupFilter').value;$('groupFilter').innerHTML='<option value="">全部餐廳</option>'+groups.filter(g=>g.kind==='include').map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('');$('groupFilter').value=previous;render();renderGroups()}
+async function refresh(){data=await api('restaurants');groups=await api('groups');me=(await api('me')).username;$('count').textContent=data.length;$('account').innerHTML=me?`<span class="muted">嗨，${esc(me)} </span><button class="authbtn" onclick="logout()">登出</button>`:`<button class="authbtn" onclick="authForm('login')">登入</button><button class="authbtn" onclick="authForm('register')">註冊</button>`;const previous=$('groupFilter').value;$('groupFilter').innerHTML='<option value="">全部餐廳</option>'+groups.filter(g=>g.kind==='include').map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('');$('groupFilter').value=previous;render();renderGroups()}
 function filtered(){let budget=+$('budget').value,cat=$('category').value,group=groups.find(g=>String(g.id)===$('groupFilter').value),exclusions=new Set($('exclude').checked?groups.filter(g=>g.kind==='exclude').flatMap(g=>g.items):[]);let list=data.filter(r=>r.price<=budget&&(!cat||r.category===cat)&&(!group||group.items.includes(r.id))&&!exclusions.has(r.id));let sort=$('sort').value;if(sort==='price')list.sort((a,b)=>a.price-b.price);if(sort==='rating')list.sort((a,b)=>(b.avg_rating||0)-(a.avg_rating||0));if(sort==='popular')list.sort((a,b)=>b.picks-a.picks);return list}
 function render(){let list=filtered();$('budgetLabel').textContent='NT$ '+$('budget').value;$('resultCount').textContent=`找到 ${list.length} 家餐廳`;$('empty').hidden=!!list.length;$('cards').innerHTML=list.map(r=>`<article class="restaurant"><div class="food-icon">${icons[r.category]||'🍽️'}</div><div class="restaurant-content"><h3>${esc(r.name)}</h3><div class="tags"><span class="tag">${esc(r.category)}</span><span class="tag">NT$ ${r.price}</span><span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span></div><p>${esc(r.description)}</p><div class="restaurant-bottom"><b>${r.review_count} 則評價</b><button class="outline small" onclick="details(${r.id})">查看詳情 →</button></div></div></article>`).join('')}
 function resetFilters(){$('budget').value=150;$('category').value='';$('groupFilter').value='';$('exclude').checked=true;$('sort').value='default';render()}
-async function randomPick(){let list=filtered();if(!list.length)return toast('沒有符合條件的餐廳');let r=list[Math.floor(Math.random()*list.length)];await api('pick/'+r.id,'POST');await refresh();show(`<div style="text-align:center"><div style="font-size:65px">🎉</div><span class="eyebrow">TODAY'S PICK</span><h2>今天就吃這家！</h2><h2>${esc(r.name)}</h2><p class="muted">${esc(r.category)} · 約 NT$ ${r.price}</p><button class="primary" onclick="modal.close();details(${r.id})">查看餐廳評價</button> <button class="outline" onclick="modal.close();randomPick()">再抽一次</button></div>`)}
+
+async function randomPick(){
+    let list=filtered();
+    if(!list.length)return toast('沒有符合條件的餐廳');
+
+    let winner = list[Math.floor(Math.random()*list.length)];
+    window.skipAnimation = false;
+
+    let wheelItems = [winner];
+    let otherList = list.filter(x => x.id !== winner.id);
+    
+    otherList.sort(() => Math.random() - 0.5);
+    for(let i=0; i<7; i++) {
+        if(otherList[i]) wheelItems.push(otherList[i]);
+        else wheelItems.push(list[Math.floor(Math.random()*list.length)]); 
+    }
+    
+    wheelItems.sort(() => Math.random() - 0.5);
+    let winnerIndex = wheelItems.findIndex(x => x.id === winner.id);
+
+    let colors = ['#ff9a9e', '#fecfef', '#a1c4fd', '#c2e9fb', '#d4fc79', '#96e6a1', '#cfd9df', '#e2ebf0'];
+    let gradientStr = [];
+    let labelsHTML = '';
+    
+    for(let i=0; i<8; i++) {
+        let startAngle = i * 45; 
+        gradientStr.push(`${colors[i]} ${startAngle}deg ${startAngle + 45}deg`);
+        
+        let textAngle = startAngle + 22.5 - 90;
+        
+        let shortName = esc(wheelItems[i].name);
+        if(shortName.length > 6) shortName = shortName.substring(0,6) + '...';
+
+        labelsHTML += `<div style="position:absolute; width:120px; text-align:right; left:50%; top:50%; transform-origin:0 50%; transform:translateY(-50%) rotate(${textAngle}deg); font-weight:bold; font-size:14px; padding-right:15px; color:#333; z-index:2;">${shortName}</div>`;
+    }
+
+    let randomOffset = (Math.random() - 0.5) * 44.98;
+    let spinDegrees = 1800 - (winnerIndex * 45 + 22.5) + randomOffset;
+
+    show(`
+    <div style="text-align:center; position:relative; padding: 10px 0; overflow:hidden;">
+        <button id="skipBtn" class="outline small" style="position:absolute; top:-10px; right:-10px; z-index:10;" onclick="window.skipAnimation=true">⏭️ Skip</button>
+        <span id="wheelEyebrow" class="eyebrow">WHEEL OF FORTUNE</span>
+        <h2 id="wheelTitle" style="margin-bottom: 20px;">命運的轉盤...</h2>
+        
+        <div style="position:relative; width:260px; height:260px; margin:0 auto;">
+            <div style="position:absolute; top:-15px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent; border-top:25px solid #ff4757; z-index:5;"></div>
+            <div id="wheel" style="width:100%; height:100%; border-radius:50%; border:4px solid var(--primary); background: conic-gradient(${gradientStr.join(', ')}); transition: transform 3s cubic-bezier(0.2, 0.8, 0.1, 1); position:relative;">
+                ${labelsHTML}
+            </div>
+        </div>
+        
+        <div id="wheelResult" style="margin-top: 15px; display: none;"></div>
+    </div>`);
+
+    setTimeout(() => {
+        if($('wheel')) $('wheel').style.transform = `rotate(${spinDegrees}deg)`;
+    }, 50);
+
+    let checkSkip = setInterval(() => { if (window.skipAnimation) finish(); }, 100);
+    let timer = setTimeout(finish, 3100);
+
+    async function finish() {
+        clearInterval(checkSkip);
+        clearTimeout(timer);
+        
+        await api('pick/'+winner.id,'POST');
+        await refresh();
+        
+        if($('skipBtn')) $('skipBtn').style.display = 'none'; 
+        if($('wheelEyebrow')) $('wheelEyebrow').textContent = "🎉 TODAY'S PICK 🎉";
+        if($('wheelTitle')) {
+            $('wheelTitle').innerHTML = `今天吃：<span style="color:var(--primary);">${esc(winner.name)}</span>`;
+        }
+        
+        if($('wheel') && window.skipAnimation) {
+            $('wheel').style.transition = 'none';
+            $('wheel').style.transform = `rotate(${spinDegrees}deg)`;
+        }
+
+        if($('wheelResult')) {
+            $('wheelResult').style.display = 'block';
+            $('wheelResult').innerHTML = `
+                <p class="muted" style="margin-top:0;">${esc(winner.category)} · 約 NT$ ${winner.price}</p>
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <button class="primary" onclick="modal.close();details(${winner.id})">查看餐廳評價</button>
+                    <button class="outline" onclick="modal.close();randomPick()">再抽一次</button>
+                </div>
+            `;
+        }
+    }
+}
+
 async function details(id){
     selected=id;
     let r=data.find(x=>x.id===id),reviews=await api('reviews/'+id);
