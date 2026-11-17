@@ -7,7 +7,33 @@ function filtered(){let budget=+$('budget').value,cat=$('category').value,group=
 function render(){let list=filtered();$('budgetLabel').textContent='NT$ '+$('budget').value;$('resultCount').textContent=`找到 ${list.length} 家餐廳`;$('empty').hidden=!!list.length;$('cards').innerHTML=list.map(r=>`<article class="restaurant"><div class="food-icon">${icons[r.category]||'🍽️'}</div><div class="restaurant-content"><h3>${esc(r.name)}</h3><div class="tags"><span class="tag">${esc(r.category)}</span><span class="tag">NT$ ${r.price}</span><span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span></div><p>${esc(r.description)}</p><div class="restaurant-bottom"><b>${r.review_count} 則評價</b><button class="outline small" onclick="details(${r.id})">查看詳情 →</button></div></div></article>`).join('')}
 function resetFilters(){$('budget').value=150;$('category').value='';$('groupFilter').value='';$('exclude').checked=true;$('sort').value='default';render()}
 async function randomPick(){let list=filtered();if(!list.length)return toast('沒有符合條件的餐廳');let r=list[Math.floor(Math.random()*list.length)];await api('pick/'+r.id,'POST');await refresh();show(`<div style="text-align:center"><div style="font-size:65px">🎉</div><span class="eyebrow">TODAY'S PICK</span><h2>今天就吃這家！</h2><h2>${esc(r.name)}</h2><p class="muted">${esc(r.category)} · 約 NT$ ${r.price}</p><button class="primary" onclick="modal.close();details(${r.id})">查看餐廳評價</button> <button class="outline" onclick="modal.close();randomPick()">再抽一次</button></div>`)}
-async function details(id){selected=id;let r=data.find(x=>x.id===id),reviews=await api('reviews/'+id);show(`<span class="eyebrow">RESTAURANT DETAILS</span><h2>${esc(r.name)}</h2><p>${esc(r.description)} · ${esc(r.area)}</p><div class="tags"><span class="tag">${esc(r.category)}</span><span class="tag">NT$ ${r.price}</span><span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span></div><h3>加入我的群組</h3>${me?groups.map(g=>`<label class="group-option"><input type="checkbox" ${g.items.includes(id)?'checked':''} onchange="toggle(${g.id},${id})">${esc(g.name)} ${g.kind==='exclude'?'（排除）':''}</label>`).join('')||'<p>尚無群組</p>':'<p class="muted">登入後即可管理群組</p>'}<h3>使用者評價 (${reviews.length})</h3><div>${reviews.map(v=>`<div class="review"><b>${esc(v.username)} · ${'★'.repeat(v.rating)}${'☆'.repeat(5-v.rating)}</b><p>${esc(v.comment)}</p><span class="muted">${esc(v.created_at)}</span></div>`).join('')||'<p class="muted">還沒有人留下評價，來當第一位吧！</p>'}</div>${me?`<h3>留下評價</h3><label class="field">星等 <b id="ratingLabel">5</b> / 5</label><input id="rating" type="range" min="1" max="5" step="1" value="5" oninput="ratingLabel.textContent=this.value"><label class="field">評論（選填）</label><textarea id="comment" rows="3" maxlength="500" placeholder="分享你的用餐經驗"></textarea><button class="primary full" onclick="submitReview(${id})">送出／更新我的評價</button>`:'<button class="outline full" onclick="authForm(\'login\')">登入後留下評價</button>'}`)}
+async function details(id){
+    selected=id;
+    let r=data.find(x=>x.id===id),reviews=await api('reviews/'+id);
+    
+    let mapQuery = encodeURIComponent(r.name + " 國立清華大學");
+    let mapUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+
+    show(`<span class="eyebrow">RESTAURANT DETAILS</span>
+    <h2>${esc(r.name)}</h2>
+    <p>${esc(r.description)} · ${esc(r.area)}</p>
+    
+    <a href="${mapUrl}" target="_blank" class="outline small" style="margin-bottom: 15px; display: inline-block; text-decoration: none;">📍 在 Google Maps 查看位置</a>
+    
+    <div class="tags">
+        <span class="tag">${esc(r.category)}</span>
+        <span class="tag">NT$ ${r.price}</span>
+        <span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span>
+    </div>
+    
+    <h3>加入我的群組</h3>
+    ${me?groups.map(g=>`<label class="group-option"><input type="checkbox" ${g.items.includes(id)?'checked':''} onchange="toggle(${g.id},${id})">${esc(g.name)} ${g.kind==='exclude'?'（排除）':''}</label>`).join('')||'<p>尚無群組</p>':'<p class="muted">登入後即可管理群組</p>'}
+    
+    <h3>使用者評價 (${reviews.length})</h3>
+    <div>${reviews.map(v=>`<div class="review"><b>${esc(v.username)} · ${'★'.repeat(v.rating)}${'☆'.repeat(5-v.rating)}</b><p>${esc(v.comment)}</p><span class="muted">${esc(v.created_at)}</span></div>`).join('')||'<p class="muted">還沒有人留下評價，來當第一位吧！</p>'}</div>
+    
+    ${me?`<h3>留下評價</h3><label class="field">星等 <b id="ratingLabel">5</b> / 5</label><input id="rating" type="range" min="1" max="5" step="1" value="5" oninput="ratingLabel.textContent=this.value"><label class="field">評論（選填）</label><textarea id="comment" rows="3" maxlength="500" placeholder="分享你的用餐經驗"></textarea><button class="primary full" onclick="submitReview(${id})">送出／更新我的評價</button>`:'<button class="outline full" onclick="authForm(\'login\')">登入後留下評價</button>'}`)
+}
 async function submitReview(id){try{await api('reviews/'+id,'POST',{rating:+$('rating').value,comment:$('comment').value});await refresh();await details(id);toast('評價已儲存')}catch(e){toast(e.message)}}
 async function toggle(gid,id){try{await api('groups/'+gid+'/toggle','POST',{restaurant_id:id});await refresh();toast('群組已更新')}catch(e){toast(e.message)}}
 function renderGroups(){$('groups').innerHTML=me?groups.map(g=>`<div class="group-card"><h3>${g.kind==='exclude'?'🚫':'💚'} ${esc(g.name)}</h3><p>${g.items.length} 家餐廳 · ${g.kind==='exclude'?'排除清單':'收藏清單'}</p><button class="outline small" onclick="manageGroup(${g.id})">管理餐廳</button> <button class="link" onclick="removeGroup(${g.id})">刪除</button></div>`).join('')||'<p>還沒有群組</p>':'<div class="group-card"><h3>建立你的專屬清單</h3><p>登入後可建立我的最愛、不吃清單，並與篩選器整合。</p><button class="outline" onclick="authForm(\'login\')">登入開始使用</button></div>'}
@@ -19,3 +45,32 @@ function authForm(mode){show(`<h2>${mode==='login'?'歡迎回來':'加入清華�
 async function auth(mode){try{await api('auth/'+mode,'POST',{username:$('username').value,password:$('password').value});modal.close();await refresh();toast('歡迎使用清華吃')}catch(e){toast(e.message)}}
 async function logout(){await api('auth/logout','POST',{});await refresh();toast('已登出')}
 ['budget','category','groupFilter','exclude','sort'].forEach(id=>$(id).addEventListener('input',render));refresh().catch(e=>toast(e.message));
+function showLeaderboard() {
+    let sorted = [...data].sort((a, b) => {
+        let scoreA = (a.avg_rating || 0) * 10 + (a.picks || 0);
+        let scoreB = (b.avg_rating || 0) * 10 + (b.picks || 0);
+        return scoreB - scoreA;
+    });
+
+    let top5 = sorted.slice(0, 5);
+
+    let html = `<span class="eyebrow">TOP 5 LEADERBOARD</span>
+    <h2>🏆 清華吃熱門排行榜</h2>
+    <p class="muted">根據使用者評分與隨機抽選熱度計算</p>
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+        ${top5.map((r, i) => `
+        <div style="display: flex; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+            <div style="font-size: 28px; font-weight: 900; color: var(--primary); width: 40px;">#${i + 1}</div>
+            <div style="flex: 1;">
+                <h3 style="margin: 0; font-size: 16px;">${esc(r.name)}</h3>
+                <div class="muted" style="font-size: 13px; margin-top: 4px;">
+                    ${r.avg_rating ? '★ ' + r.avg_rating : '尚無評分'} · 歷史熱度：${r.picks}
+                </div>
+            </div>
+            <button class="outline small" onclick="details(${r.id})">查看</button>
+        </div>
+        `).join('')}
+    </div>`;
+    
+    show(html);
+}
