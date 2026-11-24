@@ -56,6 +56,25 @@ async function refresh(){
     renderGroups();
 }
 
+function hasPrice(r){
+    return Number.isFinite(r.price_min) &&
+           Number.isFinite(r.price_max) &&
+           r.price_min > 0 &&
+           r.price_max >= r.price_min;
+}
+
+function formatPrice(r){
+    if(!hasPrice(r)){
+        return '價格待補充';
+    }
+
+    if(r.price_min === r.price_max){
+        return `NT$ ${r.price_min}`;
+    }
+
+    return `NT$ ${r.price_min}～${r.price_max}`;
+}
+
 function filtered(){
     let budget=+$('budget').value;
     let checkedAreas=[...document.querySelectorAll('input[name="area"]:checked')].map(el=>el.value);
@@ -65,7 +84,7 @@ function filtered(){
     let exclusions=new Set($('exclude').checked?groups.filter(g=>g.kind==='exclude').flatMap(g=>g.items):[]);
     
     let list=data.filter(r=>
-        r.price<=budget &&
+        (!hasPrice(r) || r.price_min <= budget) &&
         (!checkedCats.length || checkedCats.includes(r.category)) &&
         (!checkedAreas.length || checkedAreas.includes(areaGroup(r.area))) &&
         (!kw || r.name.toLowerCase().includes(kw) || areaGroup(r.area).toLowerCase().includes(kw) || (r.area||'').toLowerCase().includes(kw) || (r.description||'').toLowerCase().includes(kw)) &&
@@ -73,7 +92,15 @@ function filtered(){
         !exclusions.has(r.id)
     );
     let sort=$('sort').value;
-    if(sort==='price')list.sort((a,b)=>a.price-b.price);
+    if(sort==='price'){
+        list.sort((a,b)=>{
+            if(!hasPrice(a) && !hasPrice(b)) return 0;
+            if(!hasPrice(a)) return 1;
+            if(!hasPrice(b)) return -1;
+
+            return a.price_min - b.price_min;
+        });
+    }
     if(sort==='rating')list.sort((a,b)=>(b.avg_rating||0)-(a.avg_rating||0));
     if(sort==='popular')list.sort((a,b)=>b.picks-a.picks);
     return list;
@@ -99,7 +126,7 @@ function render(){
                 <div class="tags">
                     <span class="tag">${esc(areaGroup(r.area))}</span>
                     <span class="tag">${esc(r.category)}</span>
-                    <span class="tag">NT$ ${r.price}</span>
+                    <span class="tag">${formatPrice(r)}</span>
                     <span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span>
                 </div>
                 <p>${esc(r.description)}</p>
@@ -220,7 +247,7 @@ async function randomPick(){
         if($('wheelResult')) {
             $('wheelResult').style.display = 'block';
             $('wheelResult').innerHTML = `
-                <p class="muted" style="margin-top:0;">${esc(winner.category)} · 約 NT$ ${winner.price}</p>
+                <p class="muted" style="margin-top:0;">${esc(winner.category)} · ${formatPrice(winner)}</p>
                 <div style="display:flex; gap:10px; justify-content:center;">
                     <button class="primary" onclick="modal.close();details(${winner.id})">查看餐廳評價</button>
                     <button class="outline" onclick="modal.close();randomPick()">再抽一次</button>
@@ -249,7 +276,7 @@ async function details(id){
     <div class="tags">
         <span class="tag">${esc(areaGroup(r.area))}</span>
         <span class="tag">${esc(r.category)}</span>
-        <span class="tag">NT$ ${r.price}</span>
+        <span class="tag">${formatPrice(r)}</span>
         <span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span>
     </div>
     

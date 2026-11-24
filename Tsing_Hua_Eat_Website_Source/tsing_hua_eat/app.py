@@ -19,6 +19,20 @@ def init():
         CREATE TABLE IF NOT EXISTS review_likes(review_id INTEGER NOT NULL,user_id INTEGER NOT NULL,PRIMARY KEY(review_id,user_id),FOREIGN KEY(review_id) REFERENCES reviews(id) ON DELETE CASCADE,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
         CREATE TABLE IF NOT EXISTS groups(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL,name TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'include',FOREIGN KEY(user_id) REFERENCES users(id));
         CREATE TABLE IF NOT EXISTS group_items(group_id INTEGER NOT NULL,restaurant_id INTEGER NOT NULL,PRIMARY KEY(group_id,restaurant_id),FOREIGN KEY(group_id) REFERENCES groups(id) ON DELETE CASCADE,FOREIGN KEY(restaurant_id) REFERENCES restaurants(id));''')
+        columns = {
+            row['name']
+            for row in c.execute('PRAGMA table_info(restaurants)')
+        }
+
+        if 'price_min' not in columns:
+            c.execute(
+                'ALTER TABLE restaurants ADD COLUMN price_min INTEGER'
+            )
+
+        if 'price_max' not in columns:
+            c.execute(
+                'ALTER TABLE restaurants ADD COLUMN price_max INTEGER'
+            )
         if not c.execute('SELECT 1 FROM restaurants LIMIT 1').fetchone():
             c.executemany('INSERT INTO restaurants(name,category,price,area,description,demo) VALUES(?,?,?,?,?,?)',DEMO)
 init()
