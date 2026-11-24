@@ -56,11 +56,11 @@ async function refresh(){
     renderGroups();
 }
 
-function filtered(){
+function filtered(ignoreSearch=false){
     let budget=+$('budget').value;
     let checkedAreas=[...document.querySelectorAll('input[name="area"]:checked')].map(el=>el.value);
     let checkedCats=[...document.querySelectorAll('input[name="category"]:checked')].map(el=>el.value);
-    let kw=$('search')?$('search').value.trim().toLowerCase():'';
+    let kw=(!ignoreSearch && $('search'))?$('search').value.trim().toLowerCase():'';
     let group=groups.find(g=>String(g.id)===$('groupFilter').value);
     let exclusions=new Set($('exclude').checked?groups.filter(g=>g.kind==='exclude').flatMap(g=>g.items):[]);
     
@@ -139,8 +139,22 @@ function resetFilters(){
 }
 
 async function randomPick(){
-    let list=filtered();
+    let list=filtered(true);
     if(!list.length)return toast('沒有符合條件的餐廳');
+
+    if(list.length === 1){
+        let only = list[0];
+        await api('pick/'+only.id,'POST');
+        await refresh();
+        return show(`
+        <div style="text-align:center; padding: 15px 0;">
+            <span class="eyebrow">ONLY ONE MATCH</span>
+            <h2>今天就是它：<span style="color:var(--primary);">${getShopEmoji(only)} ${esc(only.name)}</span></h2>
+            <p class="muted">目前篩選條件下只有這 1 家餐廳符合，不用轉盤直接吃！</p>
+            <p class="muted">${esc(only.category)} · 約 NT$ ${only.price}</p>
+            <button class="primary" onclick="modal.close();details(${only.id})">查看餐廳評價</button>
+        </div>`);
+    }
 
     let winner = list[Math.floor(Math.random()*list.length)];
     window.skipAnimation = false;
