@@ -40,6 +40,31 @@
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
+
+        /* 餐廳卡片圖片樣式 */
+        .food-icon { overflow: hidden; padding: 0; }
+        .food-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* 勾選框群組樣式 */
+        .check-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 6px 0 14px;
+        }
+        .check-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .check-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -73,17 +98,28 @@
             <section style="max-width: 560px; margin: 24px auto;">
                 <aside class="panel filters">
                     <h3>篩選條件 <button class="link" onclick="resetFilters()">重設</button></h3>
+                    <label for="search">關鍵字搜尋</label>
+                    <input id="search" type="search" placeholder="輸入店名或關鍵字（如：麥、咖哩、麵）">
                     <label>最高預算 <strong id="budgetLabel">NT$ 150</strong></label>
                     <input id="budget" type="range" min="50" max="300" step="10" value="150">
                     <div class="range-label"><span>NT$ 50</span><span>NT$ 300</span></div>
-                    <label for="category">餐點種類</label>
-                    <select id="category">
-                        <option value="">不限種類</option>
-                        <option>麵食</option>
-                        <option>飯類</option>
-                        <option>輕食</option>
-                        <option>速食</option>
-                    </select>
+
+                    <label>餐廳區域 <small class="muted">（不勾代表不限）</small></label>
+                    <div class="check-group">
+                        <label><input type="checkbox" name="area" value="小吃部"> 小吃部</label>
+                        <label><input type="checkbox" name="area" value="水木餐廳"> 水木餐廳</label>
+                        <label><input type="checkbox" name="area" value="風雲樓"> 風雲樓</label>
+                        <label><input type="checkbox" name="area" value="其他"> 其他</label>
+                    </div>
+
+                    <label>餐點種類 <small class="muted">（不勾代表不限）</small></label>
+                    <div class="check-group">
+                        <label><input type="checkbox" name="category" value="麵食"> 麵食</label>
+                        <label><input type="checkbox" name="category" value="飯類"> 飯類</label>
+                        <label><input type="checkbox" name="category" value="輕食"> 輕食</label>
+                        <label><input type="checkbox" name="category" value="速食"> 速食</label>
+                    </div>
+
                     <label for="groupFilter">自訂群組</label>
                     <select id="groupFilter">
                         <option value="">全部餐廳</option>
@@ -126,7 +162,7 @@
                     </div>
                     <div id="cards" class="cards"></div>
                     <div id="pagination" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;"></div>
-                    <div id="empty" class="empty" hidden>沒有符合條件的餐廳，試著回到首頁調整預算或群組吧！</div>
+                    <div id="empty" class="empty" hidden>沒有符合條件的餐廳，試著回到首頁調整條件吧！</div>
                 </div>
             </section>
         </div>
@@ -143,8 +179,6 @@
                 <div id="groups" class="group-list"></div>
             </section>
         </div>
-
-        <section class="note">🌱 <b>展示版提醒：</b>目前餐廳名稱、價格與介紹皆為虛構示範資料，並非真實清大店家資訊。熱門排行以本站隨機抽選次數計算；AI 功能尚未串接。</section>
     </main>
     <footer>清華吃 Tsing Hua Eat · Student project prototype · Made for exploration</footer>
     <dialog id="modal"><button class="close" onclick="modal.close()">✕</button>
