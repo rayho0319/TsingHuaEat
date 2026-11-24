@@ -7,79 +7,143 @@
     <meta name="theme-color" content="#163d31">
     <title>清華吃 T.H.E.</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* 導覽列樣式 */
+        .nav-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .nav-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: inherit;
+            padding: 6px 14px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .nav-btn.active { background: var(--primary, #163d31); color: #fff; border-color: rgba(255,255,255,0.3); }
+        .tab-view[hidden] { display: none !important; }
+
+        /* 固定提示框右上角的叉叉，滾動時不滑走 */
+        #modal .close {
+            position: sticky;
+            top: 0;
+            float: right;
+            z-index: 100;
+            background: #fff;
+            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+    </style>
 </head>
 
 <body>
     <header>
         <div class="wrap nav">
-            <div class="brand"><span class="logo">食</span>
+            <div class="brand" style="cursor:pointer;" onclick="switchTab('home')"><span class="logo">食</span>
                 <div><strong>清華吃 <small>T.H.E.</small></strong>
                     <div class="subtitle">Tsing Hua Eat · 今天吃什麼？</div>
                 </div>
             </div>
+            <nav class="nav-links">
+                <button class="nav-btn active" data-tab="home" onclick="switchTab('home')">首頁（篩選器）</button>
+                <button class="nav-btn" data-tab="restaurants" onclick="switchTab('restaurants')">餐廳列表</button>
+                <button class="nav-btn" data-tab="groups" onclick="switchTab('groups')">自訂群組</button>
+            </nav>
             <div id="account"></div>
         </div>
     </header>
     <main class="wrap">
-        <section class="hero">
-            <div><span class="eyebrow">NTHU FOOD DISCOVERY</span>
-                <h1>今天，吃點<br><em>喜歡的。</em></h1>
-                <p>預算、口味、心情都交給你決定。<br>剩下的，讓清華吃幫你選。</p><button class="primary"
-                    onclick="document.getElementById('explore').scrollIntoView({behavior:'smooth'})">開始找餐廳 ↓</button>
-            </div>
-            <div class="hero-art"><span>🍜</span><span>🍱</span><span>🥗</span></div>
-        </section>
-        <section class="stats">
-            <div><b id="count">—</b><span>間示範餐廳</span></div>
-            <div><b>3</b><span>核心功能</span></div>
-            <div><b>∞</b><span>種用餐靈感</span></div>
-        </section>
-        <section id="explore">
-            <div class="section-head">
-                <div><span class="eyebrow">EXPLORE</span>
-                    <h2>找到你的下一餐</h2>
+        <!-- 分頁 1：首頁（篩選器頁） -->
+        <div id="tab-home" class="tab-view">
+            <section class="hero">
+                <div><span class="eyebrow">NTHU FOOD DISCOVERY</span>
+                    <h1>今天，吃點<br><em>喜歡的。</em></h1>
+                    <p>預算、口味、心情都交給你決定。<br>剩下的，讓清華吃幫你選。</p>
+                    <button class="primary" onclick="switchTab('restaurants')">瀏覽餐廳列表 →</button>
                 </div>
-                <p>調整條件，找到適合你的選擇</p>
-            </div>
-            <div class="layout">
+                <div class="hero-art"><span>🍜</span><span>🍱</span><span>🥗</span></div>
+            </section>
+            <section style="max-width: 560px; margin: 24px auto;">
                 <aside class="panel filters">
-                    <h3>篩選條件 <button class="link" onclick="resetFilters()">重設</button></h3><label>最高預算 <strong
-                            id="budgetLabel">NT$ 150</strong></label><input id="budget" type="range" min="50" max="300"
-                        step="10" value="150">
-                    <div class="range-label"><span>NT$ 50</span><span>NT$ 300</span></div><label
-                        for="category">餐點種類</label><select id="category">
+                    <h3>篩選條件 <button class="link" onclick="resetFilters()">重設</button></h3>
+                    <label>最高預算 <strong id="budgetLabel">NT$ 150</strong></label>
+                    <input id="budget" type="range" min="50" max="300" step="10" value="150">
+                    <div class="range-label"><span>NT$ 50</span><span>NT$ 300</span></div>
+                    <label for="category">餐點種類</label>
+                    <select id="category">
                         <option value="">不限種類</option>
                         <option>麵食</option>
                         <option>飯類</option>
                         <option>輕食</option>
                         <option>速食</option>
-                    </select><label for="groupFilter">自訂群組</label><select id="groupFilter">
+                    </select>
+                    <label for="groupFilter">自訂群組</label>
+                    <select id="groupFilter">
                         <option value="">全部餐廳</option>
-                    </select><label class="check"><input id="exclude" type="checkbox" checked> 排除「不吃清單」</label><button
-                        class="primary full" onclick="randomPick()">🎲 幫我隨機選一家</button>
-                        <button class="outline full" onclick="showLeaderboard()" style="margin-top: 10px;">🏆 查看前 5 名熱門排行榜</button>
+                    </select>
+                    <label class="check"><input id="exclude" type="checkbox" checked> 排除「不吃清單」</label>
+                    <button class="primary full" onclick="randomPick()">🎲 幫我隨機選一家</button>
+                    <button class="outline full" onclick="switchTab('restaurants')" style="margin-top: 10px;">📋 查看符合條件的餐廳</button>
+                    <button class="outline full" onclick="showLeaderboard()" style="margin-top: 10px;">🏆 查看前 5 名熱門排行榜</button>
                     <div class="hint">登入後可以儲存個人群組、留下評價。</div>
                 </aside>
-                <div>
-                    <div class="results-head"><strong id="resultCount">餐廳列表</strong><select id="sort">
-                            <option value="default">預設排序</option>
-                            <option value="rating">評分最高</option>
-                            <option value="price">價格最低</option>
-                            <option value="popular">熱門排行 ✨</option>
-                        </select></div>
-                    <div id="cards" class="cards"></div>
-                    <div id="empty" class="empty" hidden>沒有符合條件的餐廳，試著調整預算或群組吧！</div>
+            </section>
+        </div>
+
+        <!-- 分頁 2：餐廳列表 -->
+        <div id="tab-restaurants" class="tab-view" hidden>
+            <section id="explore">
+                <div class="section-head">
+                    <div><span class="eyebrow">EXPLORE</span>
+                        <h2>餐廳列表</h2>
+                    </div>
+                    <button class="outline small" onclick="switchTab('home')">⚙️ 調整篩選條件</button>
                 </div>
-            </div>
-        </section>
-        <section class="groups-section">
-            <div class="section-head">
-                <div><span class="eyebrow">PERSONALIZE</span>
-                    <h2>我的餐廳群組</h2>
-                </div><button class="outline" onclick="createGroup()">＋ 建立群組</button>
-            </div>
-            <div id="groups" class="group-list"></div>
-        </section>
+                <div>
+                    <div class="results-head">
+                        <strong id="resultCount">餐廳列表</strong>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <select id="pageSize">
+                                <option value="6">每頁 6 間</option>
+                                <option value="12" selected>每頁 12 間</option>
+                                <option value="24">每頁 24 間</option>
+                                <option value="999">顯示全部</option>
+                            </select>
+                            <select id="sort">
+                                <option value="default">預設排序</option>
+                                <option value="rating">評分最高</option>
+                                <option value="price">價格最低</option>
+                                <option value="popular">熱門排行 ✨</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="cards" class="cards"></div>
+                    <div id="pagination" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;"></div>
+                    <div id="empty" class="empty" hidden>沒有符合條件的餐廳，試著回到首頁調整預算或群組吧！</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 分頁 3：自訂群組管理頁 -->
+        <div id="tab-groups" class="tab-view" hidden>
+            <section class="groups-section">
+                <div class="section-head">
+                    <div><span class="eyebrow">PERSONALIZE</span>
+                        <h2>我的餐廳群組</h2>
+                    </div>
+                    <button class="outline" onclick="createGroup()">＋ 建立群組</button>
+                </div>
+                <div id="groups" class="group-list"></div>
+            </section>
+        </div>
+
         <section class="note">🌱 <b>展示版提醒：</b>目前餐廳名稱、價格與介紹皆為虛構示範資料，並非真實清大店家資訊。熱門排行以本站隨機抽選次數計算；AI 功能尚未串接。</section>
     </main>
     <footer>清華吃 Tsing Hua Eat · Student project prototype · Made for exploration</footer>

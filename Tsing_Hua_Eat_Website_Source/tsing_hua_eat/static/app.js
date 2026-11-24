@@ -1,11 +1,63 @@
-let data=[],groups=[],me=null,selected=null;const $=id=>document.getElementById(id);const modal=$('modal');const icons={'麵食':'🍜','飯類':'🍱','輕食':'🥗','速食':'🍔'};const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let data=[],groups=[],me=null,selected=null,currentPage=1;const $=id=>document.getElementById(id);const modal=$('modal');const icons={'麵食':'🍜','飯類':'🍱','輕食':'🥗','速食':'🍔'};const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,method='GET',body){let r=await fetch('/api/'+path,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});let d=await r.json();if(!r.ok)throw Error(d.error||'操作失敗');return d}
 function toast(msg){$('toast').textContent=msg;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}
-function show(html){$('modalBody').innerHTML=html;if(!modal.open)modal.showModal()}
-async function refresh(){data=await api('restaurants');groups=await api('groups');me=(await api('me')).username;$('count').textContent=data.length;$('account').innerHTML=me?`<span class="muted">嗨，${esc(me)} </span><button class="authbtn" onclick="logout()">登出</button>`:`<button class="authbtn" onclick="authForm('login')">登入</button><button class="authbtn" onclick="authForm('register')">註冊</button>`;const previous=$('groupFilter').value;$('groupFilter').innerHTML='<option value="">全部餐廳</option>'+groups.filter(g=>g.kind==='include').map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('');$('groupFilter').value=previous;render();renderGroups()}
+function show(html){$('modalBody').innerHTML=html;if(!modal.open)modal.showModal();modal.scrollTop=0}
+
+function switchTab(tab){
+    ['home','restaurants','groups'].forEach(t=>{
+        if($('tab-'+t)) $('tab-'+t).hidden=(t!==tab);
+    });
+    document.querySelectorAll('.nav-btn').forEach(btn=>{
+        btn.classList.toggle('active', btn.dataset.tab===tab);
+    });
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function refresh(){
+    data=await api('restaurants');
+    groups=await api('groups');
+    me=(await api('me')).username;
+    if($('count')) $('count').textContent=data.length;
+    $('account').innerHTML=me?`<span class="muted">嗨，${esc(me)} </span><button class="authbtn" onclick="logout()">登出</button>`:`<button class="authbtn" onclick="authForm('login')">登入</button><button class="authbtn" onclick="authForm('register')">註冊</button>`;
+    const previous=$('groupFilter').value;
+    $('groupFilter').innerHTML='<option value="">全部餐廳</option>'+groups.filter(g=>g.kind==='include').map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('');
+    $('groupFilter').value=previous;
+    render();
+    renderGroups();
+}
+
 function filtered(){let budget=+$('budget').value,cat=$('category').value,group=groups.find(g=>String(g.id)===$('groupFilter').value),exclusions=new Set($('exclude').checked?groups.filter(g=>g.kind==='exclude').flatMap(g=>g.items):[]);let list=data.filter(r=>r.price<=budget&&(!cat||r.category===cat)&&(!group||group.items.includes(r.id))&&!exclusions.has(r.id));let sort=$('sort').value;if(sort==='price')list.sort((a,b)=>a.price-b.price);if(sort==='rating')list.sort((a,b)=>(b.avg_rating||0)-(a.avg_rating||0));if(sort==='popular')list.sort((a,b)=>b.picks-a.picks);return list}
-function render(){let list=filtered();$('budgetLabel').textContent='NT$ '+$('budget').value;$('resultCount').textContent=`找到 ${list.length} 家餐廳`;$('empty').hidden=!!list.length;$('cards').innerHTML=list.map(r=>`<article class="restaurant"><div class="food-icon">${icons[r.category]||'🍽️'}</div><div class="restaurant-content"><h3>${esc(r.name)}</h3><div class="tags"><span class="tag">${esc(r.category)}</span><span class="tag">NT$ ${r.price}</span><span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span></div><p>${esc(r.description)}</p><div class="restaurant-bottom"><b>${r.review_count} 則評價</b><button class="outline small" onclick="details(${r.id})">查看詳情 →</button></div></div></article>`).join('')}
-function resetFilters(){$('budget').value=150;$('category').value='';$('groupFilter').value='';$('exclude').checked=true;$('sort').value='default';render()}
+
+function render(){
+    let list=filtered();
+    let pageSize=$('pageSize')?(+$('pageSize').value||12):12;
+    let totalPages=Math.max(1,Math.ceil(list.length/pageSize));
+    if(currentPage>totalPages)currentPage=totalPages;
+    if(currentPage<1)currentPage=1;
+    let start=(currentPage-1)*pageSize;
+    let pageList=list.slice(start,start+pageSize);
+
+    $('budgetLabel').textContent='NT$ '+$('budget').value;
+    $('resultCount').textContent=`找到 ${list.length} 家餐廳`;
+    $('empty').hidden=!!list.length;
+    $('cards').innerHTML=pageList.map(r=>`<article class="restaurant"><div class="food-icon">${icons[r.category]||'🍽️'}</div><div class="restaurant-content"><h3>${esc(r.name)}</h3><div class="tags"><span class="tag">${esc(r.category)}</span><span class="tag">NT$ ${r.price}</span><span class="tag">${r.avg_rating?'★ '+r.avg_rating:'尚無評分'}</span></div><p>${esc(r.description)}</p><div class="restaurant-bottom"><b>${r.review_count} 則評價</b><button class="outline small" onclick="details(${r.id})">查看詳情 →</button></div></div></article>`).join('');
+
+    if($('pagination')){
+        $('pagination').innerHTML=list.length?`
+            <button class="outline small" onclick="changePage(-1)" ${currentPage<=1?'disabled':''}>← 上一頁</button>
+            <span class="muted">第 ${currentPage} / ${totalPages} 頁</span>
+            <button class="outline small" onclick="changePage(1)" ${currentPage>=totalPages?'disabled':''}>下一頁 →</button>
+        `:'';
+    }
+}
+
+function changePage(delta){
+    currentPage+=delta;
+    render();
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function resetFilters(){$('budget').value=150;$('category').value='';$('groupFilter').value='';$('exclude').checked=true;$('sort').value='default';if($('pageSize'))$('pageSize').value='12';currentPage=1;render()}
 
 async function randomPick(){
     let list=filtered();
@@ -47,7 +99,7 @@ async function randomPick(){
 
     show(`
     <div style="text-align:center; position:relative; padding: 10px 0; overflow:hidden;">
-        <button id="skipBtn" class="outline small" style="position:absolute; top:-10px; right:-10px; z-index:10;" onclick="window.skipAnimation=true">⏭️ Skip</button>
+        <button id="skipBtn" class="outline small" style="position:absolute; top:-10px; right:40px; z-index:10;" onclick="window.skipAnimation=true">⏭️ Skip</button>
         <span id="wheelEyebrow" class="eyebrow">WHEEL OF FORTUNE</span>
         <h2 id="wheelTitle" style="margin-bottom: 20px;">命運的轉盤...</h2>
         
@@ -136,7 +188,12 @@ async function removeGroup(id){if(!confirm('確定刪除此群組？'))return;tr
 function authForm(mode){show(`<h2>${mode==='login'?'歡迎回來':'加入清華吃'}</h2><p class="muted">此為原型帳號，請勿使用平常的重要密碼。</p><label class="field">帳號</label><input id="username" autocomplete="username" maxlength="32"><label class="field">密碼</label><input id="password" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}"><button class="primary full" onclick="auth('${mode}')">${mode==='login'?'登入':'註冊'}</button><p class="muted">${mode==='login'?'還沒有帳號？':'已經有帳號？'} <button class="link" onclick="authForm('${mode==='login'?'register':'login'}')">${mode==='login'?'立即註冊':'前往登入'}</button></p>`)}
 async function auth(mode){try{await api('auth/'+mode,'POST',{username:$('username').value,password:$('password').value});modal.close();await refresh();toast('歡迎使用清華吃')}catch(e){toast(e.message)}}
 async function logout(){await api('auth/logout','POST',{});await refresh();toast('已登出')}
-['budget','category','groupFilter','exclude','sort'].forEach(id=>$(id).addEventListener('input',render));refresh().catch(e=>toast(e.message));
+
+['budget','category','groupFilter','exclude','sort','pageSize'].forEach(id=>{
+    if($(id)) $(id).addEventListener('input',()=>{currentPage=1;render()});
+});
+refresh().catch(e=>toast(e.message));
+
 function showLeaderboard() {
     let sorted = [...data].sort((a, b) => {
         let scoreA = (a.avg_rating || 0) * 10 + (a.picks || 0);
