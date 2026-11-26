@@ -98,8 +98,6 @@
             <section style="max-width: 560px; margin: 24px auto;">
                 <aside class="panel filters">
                     <h3>篩選條件 <button class="link" onclick="resetFilters()">重設</button></h3>
-                    <label for="search">關鍵字搜尋</label>
-                    <input id="search" type="search" placeholder="輸入店名或關鍵字（如：麥、咖哩、麵）">
                     <label>最高預算 <strong id="budgetLabel">NT$ 150</strong></label>
                     <input id="budget" type="range" min="50" max="300" step="10" value="150">
                     <div class="range-label"><span>NT$ 50</span><span>NT$ 300</span></div>
@@ -142,6 +140,9 @@
                     </div>
                     <button class="outline small" onclick="switchTab('home')">⚙️ 調整篩選條件</button>
                 </div>
+                <div style="margin-bottom: 16px;">
+                    <input id="search" type="search" placeholder="🔍 搜尋店名、區域或關鍵字（如：麥、咖哩、麵）" style="width: 100%; padding: 10px 14px; font-size: 15px;">
+                </div>
                 <div>
                     <div class="results-head">
                         <strong id="resultCount">餐廳列表</strong>
@@ -162,7 +163,7 @@
                     </div>
                     <div id="cards" class="cards"></div>
                     <div id="pagination" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;"></div>
-                    <div id="empty" class="empty" hidden>沒有符合條件的餐廳，試著回到首頁調整條件吧！</div>
+                    <div id="empty" class="empty" hidden>沒有符合條件的餐廳，試著調整關鍵字或回到首頁調整條件吧！</div>
                 </div>
             </section>
         </div>
